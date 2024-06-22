@@ -1,0 +1,29 @@
+# Ensures you do not inherit an AzContext in your runbook
+Disable-AzContextAutosave -Scope Process
+
+# Connect to Azure with system-assigned managed identity
+$AzureContext = (Connect-AzAccount -Identity).context
+
+# set and store context
+$AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
+
+# Get all resource groups in the subscription
+$resourceGroups = Get-AzResourceGroup
+
+# Define the names of the Azure Automation account resource group and the other two resource groups to exclude
+$excludedResourceGroups = @("Automation-Account")
+
+# Loop through each resource group
+foreach ($resourceGroup in $resourceGroups) {
+   # Check if the resource group is not in the excluded resource groups
+   if ($excludedResourceGroups -notcontains $resourceGroup.ResourceGroupName) {
+       # Get all the resources in the resource group
+       $resources = Get-AzResource -ResourceGroupName $resourceGroup.ResourceGroupName
+       # Delete each resource in the resource group
+       foreach ($resource in $resources) {
+           $resource_name_to_be_deleted = $resource.Name
+           Write-Host "Deleting $resource_name_to_be_deleted..."
+           Remove-AzResource -ResourceId $resource.ResourceId -Force
+       }
+   }
+}
